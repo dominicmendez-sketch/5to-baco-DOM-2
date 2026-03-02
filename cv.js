@@ -1,319 +1,188 @@
-function $(sel, root = document) {
-  return root.querySelector(sel);
-}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Generador de CV (PDF)</title>
+    <link rel="stylesheet" href="./cv.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
+  </head>
+  <body>
+    <main class="container">
+      <header class="header">
+        <div>
+          <h1>Form</h1>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary" id="fillExample" type="button">Ejemplo</button>
+          <button class="btn btn-primary" id="generatePdf" type="button">Generar PDF</button>
+        </div>
+      </header>
 
-function $all(sel, root = document) {
-  return Array.from(root.querySelectorAll(sel));
-}
+      <form id="cvForm" class="card" autocomplete="on">
+        <section class="grid">
+          <div class="field">
+            <label for="fullName">Nombre completo</label>
+            <input id="fullName" name="fullName" placeholder="Ej. Ana Pérez" required />
+          </div>
 
-function normalizeCsv(value) {
-  return String(value || "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
+          <div class="field">
+            <label for="role">Puesto / Perfil</label>
+            <input id="role" name="role" placeholder="Ej. Desarrolladora Frontend" />
+          </div>
 
-function safeText(v) {
-  return String(v || "").trim();
-}
+          <div class="field">
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" placeholder="ana@email.com" />
+          </div>
 
-function addRepeatable(listEl, tplEl) {
-  const node = tplEl.content.cloneNode(true);
-  listEl.appendChild(node);
-}
+          <div class="field">
+            <label for="phone">Teléfono</label>
+            <input id="phone" name="phone" placeholder="+34 600 000 000" />
+          </div>
 
-function gatherRepeatables(listEl, mapFn) {
-  const items = $all(".repeatable-item", listEl);
-  return items.map(mapFn).filter((x) => x != null);
-}
+          <div class="field">
+            <label for="location">Ubicación</label>
+            <input id="location" name="location" placeholder="Madrid, España" />
+          </div>
 
-function formDataToObject(formEl) {
-  const fd = new FormData(formEl);
-  const obj = {};
-  for (const [k, v] of fd.entries()) obj[k] = v;
-  return obj;
-}
+          <div class="field">
+            <label for="links">Links (LinkedIn / GitHub / Portafolio)</label>
+            <input id="links" name="links" placeholder="https://..., https://..." />
+            <div class="hint">Separados por coma.</div>
+          </div>
+        </section>
 
-function getJsPDF() {
-  const ns = window.jspdf;
-  if (ns && ns.jsPDF) return ns.jsPDF;
-  throw new Error("No se pudo cargar jsPDF. Revisa tu conexión a Internet o el CDN.");
-}
+        <section class="section">
+          <div class="section-head">
+            <h2>Resumen</h2>
+          </div>
+          <div class="field">
+            <label for="summary">Sobre ti</label>
+            <textarea
+              id="summary"
+              name="summary"
+              rows="4"
+              placeholder="2–4 líneas sobre tu experiencia y tus fortalezas."
+            ></textarea>
+          </div>
+        </section>
 
-function generateCvPdf(data) {
-  const jsPDF = getJsPDF();
-  const doc = new jsPDF({ unit: "pt", format: "a4" });
+        <section class="section">
+          <div class="section-head">
+            <h2>Habilidades</h2>
+          </div>
+          <div class="field">
+            <label for="skills">Skills</label>
+            <input id="skills" name="skills" placeholder="HTML, CSS, JavaScript, React..." />
+            <div class="hint">Separadas por coma.</div>
+          </div>
+        </section>
 
-  const page = {
-    w: doc.internal.pageSize.getWidth(),
-    h: doc.internal.pageSize.getHeight(),
-  };
-  const margin = 44;
-  const maxW = page.w - margin * 2;
+        <section class="section">
+          <div class="section-head">
+            <h2>Educación</h2>
+            <button class="btn btn-secondary" type="button" id="addEducation">Añadir</button>
+          </div>
+          <div id="educationList" class="repeatable-list" aria-live="polite"></div>
+        </section>
 
-  let y = margin;
+        <section class="section">
+          <div class="section-head">
+            <h2>Experiencia</h2>
+            <button class="btn btn-secondary" type="button" id="addExperience">Añadir</button>
+          </div>
+          <div id="experienceList" class="repeatable-list" aria-live="polite"></div>
+        </section>
 
-  function ensureSpace(needed) {
-    if (y + needed <= page.h - margin) return;
-    doc.addPage();
-    y = margin;
-  }
+        <section class="section">
+          <div class="section-head">
+            <h2>Idiomas (opcional)</h2>
+          </div>
+          <div class="field">
+            <label for="languages">Idiomas</label>
+            <input id="languages" name="languages" placeholder="Español (nativo), Inglés (B2)..." />
+            <div class="hint">Separados por coma.</div>
+          </div>
+        </section>
+      </form>
 
-  function addTitle(text) {
-    const t = safeText(text);
-    if (!t) return;
-    ensureSpace(28);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(18);
-    doc.text(t, margin, y);
-    y += 22;
-  }
+      <footer class="footer">
+        <span class="muted">
+          Nota: la generación de PDF se hace en tu navegador. Si no te descarga, revisa que tengas Internet para
+          cargar `jsPDF`.
+        </span>
+      </footer>
+    </main>
 
-  function addSubTitle(text) {
-    const t = safeText(text);
-    if (!t) return;
-    ensureSpace(18);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(12);
-    doc.setTextColor(80);
-    doc.text(t, margin, y);
-    doc.setTextColor(0);
-    y += 14;
-  }
+    <template id="tplEducation">
+      <article class="repeatable-item">
+        <div class="repeatable-row">
+          <div class="field">
+            <label>Institución</label>
+            <input name="eduInstitution" placeholder="Universidad / Instituto" />
+          </div>
+          <div class="field">
+            <label>Título</label>
+            <input name="eduDegree" placeholder="Grado / Curso" />
+          </div>
+        </div>
+        <div class="repeatable-row">
+          <div class="field">
+            <label>Inicio</label>
+            <input name="eduStart" placeholder="2022" />
+          </div>
+          <div class="field">
+            <label>Fin</label>
+            <input name="eduEnd" placeholder="2026 / Actual" />
+          </div>
+        </div>
+        <div class="field">
+          <label>Descripción (opcional)</label>
+          <textarea name="eduDesc" rows="2" placeholder="Logros, notas, proyectos..."></textarea>
+        </div>
+        <div class="repeatable-actions">
+          <button class="btn btn-danger js-remove" type="button">Eliminar</button>
+        </div>
+      </article>
+    </template>
 
-  function addSection(text) {
-    const t = safeText(text);
-    if (!t) return;
-    ensureSpace(22);
-    y += 6;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.text(t.toUpperCase(), margin, y);
-    y += 10;
-    doc.setDrawColor(200);
-    doc.line(margin, y, page.w - margin, y);
-    y += 14;
-  }
+    <template id="tplExperience">
+      <article class="repeatable-item">
+        <div class="repeatable-row">
+          <div class="field">
+            <label>Empresa</label>
+            <input name="expCompany" placeholder="Empresa" />
+          </div>
+          <div class="field">
+            <label>Puesto</label>
+            <input name="expTitle" placeholder="Puesto" />
+          </div>
+        </div>
+        <div class="repeatable-row">
+          <div class="field">
+            <label>Inicio</label>
+            <input name="expStart" placeholder="2024" />
+          </div>
+          <div class="field">
+            <label>Fin</label>
+            <input name="expEnd" placeholder="2025 / Actual" />
+          </div>
+        </div>
+        <div class="field">
+          <label>Descripción</label>
+          <textarea
+            name="expDesc"
+            rows="3"
+            placeholder="Responsabilidades, impacto, tecnologías..."
+          ></textarea>
+        </div>
+        <div class="repeatable-actions">
+          <button class="btn btn-danger js-remove" type="button">Eliminar</button>
+        </div>
+      </article>
+    </template>
 
-  function addParagraph(text) {
-    const t = safeText(text);
-    if (!t) return;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(11);
-    const lines = doc.splitTextToSize(t, maxW);
-    ensureSpace(lines.length * 14 + 4);
-    doc.text(lines, margin, y);
-    y += lines.length * 14 + 6;
-  }
-
-  function addBulletList(items) {
-    const list = (items || []).map(safeText).filter(Boolean);
-    if (!list.length) return;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(11);
-    const bulletIndent = 10;
-    const textIndent = 18;
-
-    for (const it of list) {
-      const lines = doc.splitTextToSize(it, maxW - textIndent);
-      ensureSpace(lines.length * 14 + 6);
-      doc.text("•", margin + bulletIndent - 6, y);
-      doc.text(lines, margin + textIndent, y);
-      y += lines.length * 14 + 2;
-    }
-    y += 6;
-  }
-
-  function addEntry(title, meta, body) {
-    const t = safeText(title);
-    const m = safeText(meta);
-    const b = safeText(body);
-    if (!t && !m && !b) return;
-
-    ensureSpace(40);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    if (t) doc.text(t, margin, y);
-
-    if (m) {
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(90);
-      doc.text(m, page.w - margin, y, { align: "right" });
-      doc.setTextColor(0);
-    }
-    y += 14;
-
-    if (b) addParagraph(b);
-    else y += 6;
-  }
-
-  const fullName = safeText(data.fullName);
-  const role = safeText(data.role);
-  const email = safeText(data.email);
-  const phone = safeText(data.phone);
-  const location = safeText(data.location);
-  const links = normalizeCsv(data.links);
-  const summary = safeText(data.summary);
-  const skills = normalizeCsv(data.skills);
-  const languages = normalizeCsv(data.languages);
-
-  addTitle(fullName || "Currículum");
-  addSubTitle(role);
-
-  const headerLine = [email, phone, location].filter(Boolean).join(" · ");
-  if (headerLine) addParagraph(headerLine);
-  if (links.length) addParagraph(links.join(" · "));
-
-  if (summary) {
-    addSection("Resumen");
-    addParagraph(summary);
-  }
-
-  if (skills.length) {
-    addSection("Habilidades");
-    addBulletList(skills);
-  }
-
-  if (data.education && data.education.length) {
-    addSection("Educación");
-    for (const e of data.education) {
-      const title = [e.degree, e.institution].filter(Boolean).join(" — ");
-      const meta = [e.start, e.end].filter(Boolean).join(" - ");
-      addEntry(title, meta, e.desc);
-    }
-  }
-
-  if (data.experience && data.experience.length) {
-    addSection("Experiencia");
-    for (const e of data.experience) {
-      const title = [e.title, e.company].filter(Boolean).join(" — ");
-      const meta = [e.start, e.end].filter(Boolean).join(" - ");
-      addEntry(title, meta, e.desc);
-    }
-  }
-
-  if (languages.length) {
-    addSection("Idiomas");
-    addBulletList(languages);
-  }
-
-  return doc;
-}
-
-function getCvData() {
-  const formEl = $("#cvForm");
-  const base = formDataToObject(formEl);
-
-  const education = gatherRepeatables($("#educationList"), (item) => {
-    const institution = safeText($("[name='eduInstitution']", item)?.value);
-    const degree = safeText($("[name='eduDegree']", item)?.value);
-    const start = safeText($("[name='eduStart']", item)?.value);
-    const end = safeText($("[name='eduEnd']", item)?.value);
-    const desc = safeText($("[name='eduDesc']", item)?.value);
-    if (![institution, degree, start, end, desc].some(Boolean)) return null;
-    return { institution, degree, start, end, desc };
-  });
-
-  const experience = gatherRepeatables($("#experienceList"), (item) => {
-    const company = safeText($("[name='expCompany']", item)?.value);
-    const title = safeText($("[name='expTitle']", item)?.value);
-    const start = safeText($("[name='expStart']", item)?.value);
-    const end = safeText($("[name='expEnd']", item)?.value);
-    const desc = safeText($("[name='expDesc']", item)?.value);
-    if (![company, title, start, end, desc].some(Boolean)) return null;
-    return { company, title, start, end, desc };
-  });
-
-  return { ...base, education, experience };
-}
-
-function attachRemoveHandlers() {
-  document.addEventListener("click", (e) => {
-    const btn = e.target.closest(".js-remove");
-    if (!btn) return;
-    const item = btn.closest(".repeatable-item");
-    if (item) item.remove();
-  });
-}
-
-function fillExample() {
-  $("#fullName").value = "Ana Pérez";
-  $("#role").value = "Desarrolladora Frontend";
-  $("#email").value = "ana.perez@email.com";
-  $("#phone").value = "+34 600 000 000";
-  $("#location").value = "Madrid, España";
-  $("#links").value = "https://linkedin.com/in/anaperez, https://github.com/anaperez";
-  $("#summary").value =
-    "Frontend con 3+ años construyendo interfaces rápidas y accesibles. Experiencia con React, diseño de componentes y buenas prácticas de UX. Enfocada en calidad, performance y colaboración.";
-  $("#skills").value = "HTML, CSS, JavaScript, React, TypeScript, Accesibilidad, Git";
-  $("#languages").value = "Español (nativo), Inglés (B2)";
-
-  const eduList = $("#educationList");
-  eduList.innerHTML = "";
-  addRepeatable(eduList, $("#tplEducation"));
-  const eduItem = $(".repeatable-item", eduList);
-  $("[name='eduInstitution']", eduItem).value = "Universidad Ejemplo";
-  $("[name='eduDegree']", eduItem).value = "Grado en Ingeniería Informática";
-  $("[name='eduStart']", eduItem).value = "2018";
-  $("[name='eduEnd']", eduItem).value = "2022";
-  $("[name='eduDesc']", eduItem).value = "Proyecto final: aplicación web con enfoque en accesibilidad.";
-
-  const expList = $("#experienceList");
-  expList.innerHTML = "";
-  addRepeatable(expList, $("#tplExperience"));
-  const expItem = $(".repeatable-item", expList);
-  $("[name='expCompany']", expItem).value = "Tech S.A.";
-  $("[name='expTitle']", expItem).value = "Frontend Developer";
-  $("[name='expStart']", expItem).value = "2023";
-  $("[name='expEnd']", expItem).value = "Actual";
-  $("[name='expDesc']", expItem).value =
-    "Desarrollo de componentes reutilizables, optimización de rendimiento (LCP/CLS), mejoras de accesibilidad (WCAG) y colaboración con diseño y backend.";
-}
-
-function main() {
-  const eduList = $("#educationList");
-  const expList = $("#experienceList");
-  const tplEdu = $("#tplEducation");
-  const tplExp = $("#tplExperience");
-
-  // Empieza con 1 bloque en cada sección para que sea más cómodo.
-  addRepeatable(eduList, tplEdu);
-  addRepeatable(expList, tplExp);
-
-  $("#addEducation").addEventListener("click", () => addRepeatable(eduList, tplEdu));
-  $("#addExperience").addEventListener("click", () => addRepeatable(expList, tplExp));
-
-  $("#fillExample").addEventListener("click", fillExample);
-
-  $("#generatePdf").addEventListener("click", () => {
-    const fullName = safeText($("#fullName").value);
-    if (!fullName) {
-      $("#fullName").focus();
-      alert("Por favor, escribe tu nombre completo.");
-      return;
-    }
-
-    try {
-      const data = getCvData();
-      const doc = generateCvPdf(data);
-      const fileSafeName = fullName.replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "_") || "cv";
-      const fileName = `CV_${fileSafeName}.pdf`;
-
-      const blob = doc.output("blob");
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      alert(err?.message || "Error generando el PDF.");
-    }
-  });
-
-  attachRemoveHandlers();
-}
-
-main();
+    <script src="./cv.js"></script>
+  </body>
+</html>
