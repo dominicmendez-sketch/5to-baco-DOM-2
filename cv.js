@@ -34,16 +34,14 @@ function formDataToObject(formEl) {
   return obj;
 }
 
-function mustHaveJsPdf() {
-  const jspdf = window.jspdf;
-  if (!jspdf || !jspdf.jsPDF) {
-    throw new Error("No se pudo cargar jsPDF. Revisa tu conexión a Internet o el CDN.");
-  }
-  return jspdf;
+function getJsPDF() {
+  const ns = window.jspdf;
+  if (ns && ns.jsPDF) return ns.jsPDF;
+  throw new Error("No se pudo cargar jsPDF. Revisa tu conexión a Internet o el CDN.");
 }
 
 function generateCvPdf(data) {
-  const { jsPDF } = mustHaveJsPdf().jsPDF ? window.jspdf : mustHaveJsPdf();
+  const jsPDF = getJsPDF();
   const doc = new jsPDF({ unit: "pt", format: "a4" });
 
   const page = {
@@ -299,7 +297,17 @@ function main() {
       const data = getCvData();
       const doc = generateCvPdf(data);
       const fileSafeName = fullName.replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "_") || "cv";
-      doc.save(`CV_${fileSafeName}.pdf`);
+      const fileName = `CV_${fileSafeName}.pdf`;
+
+      const blob = doc.output("blob");
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     } catch (err) {
       alert(err?.message || "Error generando el PDF.");
     }
